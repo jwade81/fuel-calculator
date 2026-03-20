@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Trip Cost Calculator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        /* ===== RESET & BASE ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --green: #00FF41;
+            --green-dim: #00cc33;
+            --green-glow: rgba(0, 255, 65, 0.35);
+            --green-glow-strong: rgba(0, 255, 65, 0.6);
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --surface-light: #1a1a1a;
+            --border: #1e1e1e;
+            --text: #c0c0c0;
+            --text-bright: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* ===== MATRIX RAIN CANVAS ===== */
+        #matrix-rain {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            opacity: 0.06;
+            pointer-events: none;
+        }
+
+        /* ===== LAYOUT ===== */
+        .app-container {
+            position: relative;
+            z-index: 1;
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 16px;
+            min-height: 100vh;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 1.1rem;
+            color: var(--green);
+            text-shadow: 0 0 10px var(--green-glow);
+            letter-spacing: 1px;
+        }
+
+        .settings-btn {
+            background: none;
+            border: 1px solid var(--green-dim);
+            color: var(--green);
+            width: 38px; height: 38px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 1.2rem;
+        }
+
+        .settings-btn:hover {
+            background: rgba(0,255,65,0.1);
+            box-shadow: 0 0 10px var(--green-glow);
+        }
+
+        /* ===== SETTINGS PANEL ===== */
+        .settings-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .settings-overlay.open { display: flex; }
+
+        .settings-panel {
+            background: var(--surface);
+            border: 1px solid var(--green-dim);
+            border-radius: 10px;
+            padding: 24px;
+            width: 100%;
+            max-width: 460px;
+            margin-top: 20px;
+            box-shadow: 0 0 30px var(--green-glow);
+        }
+
+        .settings-panel h2 {
+            color: var(--green);
+            font-size: 1rem;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .settings-close {
+            float: right;
+            background: none;
+            border: none;
+            color: var(--green);
+            font-size: 1.5rem;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            color: var(--green-dim);
+            font-size: 0.75rem;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-group input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-bright);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--green-dim);
+            box-shadow: 0 0 8px var(--green-glow);
+        }
+
+        .vehicle-settings {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .vehicle-settings h3 {
+            color: var(--green);
+            font-size: 0.8rem;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .fuel-price-info {
+            font-size: 0.7rem;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .save-btn {
+            width: 100%;
+            background: transparent;
+            border: 1px solid var(--green);
+            color: var(--green);
+            padding: 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .save-btn:hover {
+            background: var(--green);
+            color: var(--bg);
+            box-shadow: 0 0 20px var(--green-glow);
+        }
+
+        /* ===== VEHICLE SELECTOR ===== */
+        .section-label {
+            color: var(--green-dim);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .vehicle-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .vehicle-card {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .vehicle-card:hover {
+            border-color: var(--green-dim);
+        }
+
+        .vehicle-card.selected {
+            border-color: var(--green);
+            box-shadow: 0 0 20px var(--green-glow), inset 0 0 20px rgba(0,255,65,0.05);
+        }
+
+        .vehicle-card.selected::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(ellipse at center, rgba(0,255,65,0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .vehicle-card:not(.selected) {
+            opacity: 0.5;
+        }
+
+        .vehicle-card img {
+            width: 100%;
+            height: 80px;
+            object-fit: contain;
+            margin-bottom: 8px;
+            filter: brightness(0.9);
+        }
+
+        .vehicle-card.selected img {
+            filter: brightness(1) drop-shadow(0 0 6px var(--green-glow));
+        }
+
+        .vehicle-card .v-name {
+            font-size: 0.7rem;
+            color: var(--text-bright);
+            margin-bottom: 4px;
+            line-height: 1.3;
+        }
+
+        .vehicle-card .v-mpg {
+            font-size: 0.75rem;
+            color: var(--green);
+        }
+
+        .vehicle-card .v-mpg span {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        /* ===== TRIP CALCULATOR ===== */
+        .calc-section {
+            margin-bottom: 24px;
+        }
+
+        .dest-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .dest-input-group input {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-bright);
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+
+        .dest-input-group input:focus {
+            outline: none;
+            border-color: var(--green-dim);
+            box-shadow: 0 0 10px var(--green-glow);
+        }
+
+        .calc-btn {
+            background: var(--green);
+            border: none;
+            color: var(--bg);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .calc-btn:hover {
+            box-shadow: 0 0 20px var(--green-glow-strong);
+        }
+
+        .calc-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ===== RESULTS ===== */
+        .results {
+            display: none;
+        }
+
+        .results.visible { display: block; }
+
+        .cost-display {
+            text-align: center;
+            padding: 24px 16px;
+            background: var(--surface);
+            border: 1px solid var(--green-dim);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 0 25px var(--green-glow);
+        }
+
+        .cost-label {
+            font-size: 0.7rem;
+            color: var(--green-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+        }
+
+        .cost-value {
+            font-size: 2.4rem;
+            color: var(--green);
+            text-shadow: 0 0 20px var(--green-glow), 0 0 40px var(--green-glow);
+            letter-spacing: 2px;
+        }
+
+        .cost-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .cost-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .cost-box .cb-label {
+            font-size: 0.65rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .cost-box .cb-value {
+            font-size: 1.3rem;
+            color: var(--green);
+            text-shadow: 0 0 8px var(--green-glow);
+        }
+
+        .breakdown {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .breakdown h3 {
+            font-size: 0.7rem;
+            color: var(--green-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+        }
+
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #1a1a1a;
+            font-size: 0.8rem;
+        }
+
+        .breakdown-row:last-child { border-bottom: none; }
+
+        .breakdown-row .br-label { color: #666; }
+        .breakdown-row .br-value { color: var(--text-bright); }
+
+        /* ===== LOADING ===== */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .loading.visible { display: block; }
+
+        .loading-text {
+            color: var(--green);
+            font-size: 0.85rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+
+        /* ===== ERROR ===== */
+        .error-msg {
+            display: none;
+            background: rgba(255,50,50,0.1);
+            border: 1px solid #ff3232;
+            color: #ff6666;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .error-msg.visible { display: block; }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            text-align: center;
+            padding: 20px 0;
+            font-size: 0.65rem;
+            color: #333;
+            border-top: 1px solid var(--border);
+            margin-top: 20px;
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
+
+        /* ===== RESPONSIVE ===== */
+        @media (min-width: 600px) {
+            .app-container {
+                padding: 24px;
+            }
+            .cost-value {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="matrix-rain"></canvas>
+
+<div class="app-container">
+    <!-- HEADER -->
+    <div class="header">
+        <h1>// FUEL CALC</h1>
+        <button class="settings-btn" onclick="toggleSettings()" title="Settings">&#9881;</button>
+    </div>
+
+    <!-- SETTINGS OVERLAY -->
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-panel">
+            <button class="settings-close" onclick="toggleSettings()">&times;</button>
+            <h2>&#9881; Settings</h2>
+
+            <div class="form-group">
+                <label>Home Address</label>
+                <input type="text" id="homeAddress" placeholder="123 Main St, City, State">
+            </div>
+
+            <div class="vehicle-settings">
+                <h3>Vehicle 1</h3>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="v1Name" placeholder="2007 Chevy Tahoe">
+                </div>
+                <div class="form-group">
+                    <label>MPG</label>
+                    <input type="number" id="v1Mpg" placeholder="15" step="0.1">
+                </div>
+            </div>
+
+            <div class="vehicle-settings">
+                <h3>Vehicle 2</h3>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="v2Name" placeholder="2017 Ford Explorer">
+                </div>
+                <div class="form-group">
+                    <label>MPG</label>
+                    <input type="number" id="v2Mpg" placeholder="20" step="0.1">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Fuel Price ($/gal)</label>
+                <input type="number" id="fuelPrice" placeholder="3.50" step="0.01">
+                <div class="fuel-price-info" id="fuelPriceDate"></div>
+            </div>
+
+            <button class="save-btn" onclick="saveSettings()">Save Settings</button>
+        </div>
+    </div>
+
+    <!-- VEHICLE SELECTOR -->
+    <div class="section-label">Select Vehicle</div>
+    <div class="vehicle-cards">
+        <div class="vehicle-card selected" id="card1" onclick="selectVehicle(1)">
+            <img id="v1Img" src="https://www.motortrend.com/uploads/sites/10/2015/11/2007-chevrolet-tahoe-ltz-2wd-suv-angular-front.png" alt="Vehicle 1" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 100%22><rect fill=%22%23111%22 width=%22200%22 height=%22100%22/><text x=%2250%25%22 y=%2250%25%22 fill=%22%2300FF41%22 font-family=%22monospace%22 font-size=%2212%22 text-anchor=%22middle%22 dy=%22.3em%22>VEHICLE 1</text></svg>'">
+            <div class="v-name" id="v1Label">2007 Chevy Tahoe</div>
+            <div class="v-mpg"><span id="v1MpgDisplay">15</span> MPG</div>
+        </div>
+        <div class="vehicle-card" id="card2" onclick="selectVehicle(2)">
+            <img id="v2Img" src="https://www.motortrend.com/uploads/sites/10/2017/01/2017-ford-explorer-sport-4wd-suv-angular-front.png" alt="Vehicle 2" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 100%22><rect fill=%22%23111%22 width=%22200%22 height=%22100%22/><text x=%2250%25%22 y=%2250%25%22 fill=%22%2300FF41%22 font-family=%22monospace%22 font-size=%2212%22 text-anchor=%22middle%22 dy=%22.3em%22>VEHICLE 2</text></svg>'">
+            <div class="v-name" id="v2Label">2017 Ford Explorer</div>
+            <div class="v-mpg"><span id="v2MpgDisplay">20</span> MPG</div>
+        </div>
+    </div>
+
+    <!-- TRIP CALCULATOR -->
+    <div class="calc-section">
+        <div class="section-label">Destination</div>
+        <div class="dest-input-group">
+            <input type="text" id="destination" placeholder="Enter destination address...">
+            <button class="calc-btn" id="calcBtn" onclick="calculate()">CALC</button>
+        </div>
+    </div>
+
+    <!-- ERROR -->
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- LOADING -->
+    <div class="loading" id="loading">
+        <div class="loading-text">/// CALCULATING ROUTE ...</div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="results" id="results">
+        <div class="cost-display">
+            <div class="cost-label">Round Trip Cost</div>
+            <div class="cost-value" id="roundTripCost">$0.00</div>
+        </div>
+
+        <div class="cost-grid">
+            <div class="cost-box">
+                <div class="cb-label">One-Way Miles</div>
+                <div class="cb-value" id="oneWayMiles">0</div>
+            </div>
+            <div class="cost-box">
+                <div class="cb-label">Round Trip Miles</div>
+                <div class="cb-value" id="roundTripMiles">0</div>
+            </div>
+            <div class="cost-box">
+                <div class="cb-label">One-Way Cost</div>
+                <div class="cb-value" id="oneWayCost">$0.00</div>
+            </div>
+            <div class="cost-box">
+                <div class="cb-label">Round Trip Cost</div>
+                <div class="cb-value" id="roundTripCostSmall">$0.00</div>
+            </div>
+        </div>
+
+        <div class="breakdown">
+            <h3>Breakdown</h3>
+            <div class="breakdown-row">
+                <span class="br-label">Vehicle</span>
+                <span class="br-value" id="brVehicle">—</span>
+            </div>
+            <div class="breakdown-row">
+                <span class="br-label">MPG</span>
+                <span class="br-value" id="brMpg">—</span>
+            </div>
+            <div class="breakdown-row">
+                <span class="br-label">Fuel Price</span>
+                <span class="br-value" id="brFuel">—</span>
+            </div>
+            <div class="breakdown-row">
+                <span class="br-label">Distance (one-way)</span>
+                <span class="br-value" id="brDist">—</span>
+            </div>
+            <div class="breakdown-row">
+                <span class="br-label">Gallons Used (RT)</span>
+                <span class="br-value" id="brGallons">—</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">FUEL TRIP CALCULATOR // MATRIX EDITION</div>
+</div>
+
+<script>
+/*
+ * =============================================================
+ *  GOOGLE MAPS DISTANCE MATRIX API KEY
+ * =============================================================
+ *  1. Go to https://console.cloud.google.com/
+ *  2. Create a new project (or select existing)
+ *  3. Enable the "Distance Matrix API" under APIs & Services
+ *  4. Go to Credentials → Create Credentials → API Key
+ *  5. (Recommended) Restrict the key:
+ *       - Application restriction: HTTP referrers
+ *       - Add your GitHub Pages URL: https://YOUR_USERNAME.github.io/fuel-calculator/*
+ *       - API restriction: Distance Matrix API only
+ *  6. Replace 'YOUR_API_KEY_HERE' below with your key
+ * =============================================================
+ */
+const GOOGLE_MAPS_API_KEY = 'YOUR_API_KEY_HERE';
+
+// ===== STATE =====
+let selectedVehicle = 1;
+
+// ===== DEFAULT VEHICLES =====
+const defaults = {
+    v1Name: '2007 Chevy Tahoe',
+    v1Mpg: 15,
+    v2Name: '2017 Ford Explorer AWD Sport',
+    v2Mpg: 20,
+    fuelPrice: 3.50,
+    homeAddress: ''
+};
+
+// ===== VEHICLE IMAGES =====
+// Using realistic placeholder images; onerror fallbacks are in the HTML
+const vehicleImages = {
+    1: 'https://images.hgmsites.net/lrg/2007-chevrolet-tahoe-2wd-4-door-1500-ltz-angular-front-exterior-view_100276498_l.jpg',
+    2: 'https://images.hgmsites.net/lrg/2017-ford-explorer-sport-4wd-angular-front-exterior-view_100580683_l.jpg'
+};
+
+// ===== INIT =====
+function init() {
+    loadSettings();
+    updateVehicleCards();
+    initMatrixRain();
+
+    // Load vehicle images
+    document.getElementById('v1Img').src = vehicleImages[1];
+    document.getElementById('v2Img').src = vehicleImages[2];
+
+    // Enter key triggers calc
+    document.getElementById('destination').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') calculate();
+    });
+}
+
+// ===== SETTINGS =====
+function loadSettings() {
+    const s = key => localStorage.getItem(key);
+    document.getElementById('homeAddress').value = s('homeAddress') || defaults.homeAddress;
+    document.getElementById('v1Name').value = s('v1Name') || defaults.v1Name;
+    document.getElementById('v1Mpg').value = s('v1Mpg') || defaults.v1Mpg;
+    document.getElementById('v2Name').value = s('v2Name') || defaults.v2Name;
+    document.getElementById('v2Mpg').value = s('v2Mpg') || defaults.v2Mpg;
+    document.getElementById('fuelPrice').value = s('fuelPrice') || defaults.fuelPrice;
+
+    const dateStr = s('fuelPriceDate');
+    if (dateStr) {
+        document.getElementById('fuelPriceDate').textContent = 'Last Updated: ' + dateStr;
+    }
+}
+
+function saveSettings() {
+    const fields = ['homeAddress', 'v1Name', 'v1Mpg', 'v2Name', 'v2Mpg', 'fuelPrice'];
+    fields.forEach(id => localStorage.setItem(id, document.getElementById(id).value));
+
+    const now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    localStorage.setItem('fuelPriceDate', now);
+    document.getElementById('fuelPriceDate').textContent = 'Last Updated: ' + now;
+
+    updateVehicleCards();
+    toggleSettings();
+}
+
+function toggleSettings() {
+    const overlay = document.getElementById('settingsOverlay');
+    overlay.classList.toggle('open');
+}
+
+// ===== VEHICLE CARDS =====
+function updateVehicleCards() {
+    const g = id => localStorage.getItem(id) || defaults[id];
+    document.getElementById('v1Label').textContent = g('v1Name');
+    document.getElementById('v1MpgDisplay').textContent = g('v1Mpg');
+    document.getElementById('v2Label').textContent = g('v2Name');
+    document.getElementById('v2MpgDisplay').textContent = g('v2Mpg');
+}
+
+function selectVehicle(num) {
+    selectedVehicle = num;
+    document.getElementById('card1').classList.toggle('selected', num === 1);
+    document.getElementById('card2').classList.toggle('selected', num === 2);
+}
+
+// ===== CALCULATE =====
+async function calculate() {
+    const home = localStorage.getItem('homeAddress') || '';
+    const dest = document.getElementById('destination').value.trim();
+
+    // Hide previous results
+    document.getElementById('results').classList.remove('visible');
+    document.getElementById('errorMsg').classList.remove('visible');
+
+    if (!home) {
+        showError('Set your home address in Settings first.');
+        return;
+    }
+    if (!dest) {
+        showError('Enter a destination address.');
+        return;
+    }
+    if (GOOGLE_MAPS_API_KEY === 'YOUR_API_KEY_HERE') {
+        showError('Add your Google Maps API key in the source code. See the comment in index.html for instructions.');
+        return;
+    }
+
+    const btn = document.getElementById('calcBtn');
+    btn.disabled = true;
+    document.getElementById('loading').classList.add('visible');
+
+    try {
+        const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(home)}&destinations=${encodeURIComponent(dest)}&units=imperial&key=${GOOGLE_MAPS_API_KEY}`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.status !== 'OK') throw new Error('API error: ' + data.status);
+
+        const element = data.rows[0].elements[0];
+        if (element.status !== 'OK') throw new Error('Route not found. Check your addresses.');
+
+        // Distance comes in meters from the API; convert to miles
+        const distText = element.distance.text;
+        const distMeters = element.distance.value;
+        const oneWayMiles = distMeters * 0.000621371;
+
+        const mpgKey = selectedVehicle === 1 ? 'v1Mpg' : 'v2Mpg';
+        const nameKey = selectedVehicle === 1 ? 'v1Name' : 'v2Name';
+        const mpg = parseFloat(localStorage.getItem(mpgKey) || defaults[mpgKey]);
+        const fuelPrice = parseFloat(localStorage.getItem('fuelPrice') || defaults.fuelPrice);
+        const vehicleName = localStorage.getItem(nameKey) || defaults[nameKey];
+
+        const roundTripMiles = oneWayMiles * 2;
+        const oneWayCost = (oneWayMiles / mpg) * fuelPrice;
+        const roundTripCost = (roundTripMiles / mpg) * fuelPrice;
+        const gallonsRT = roundTripMiles / mpg;
+
+        // Update UI
+        document.getElementById('roundTripCost').textContent = '$' + roundTripCost.toFixed(2);
+        document.getElementById('oneWayMiles').textContent = oneWayMiles.toFixed(1);
+        document.getElementById('roundTripMiles').textContent = roundTripMiles.toFixed(1);
+        document.getElementById('oneWayCost').textContent = '$' + oneWayCost.toFixed(2);
+        document.getElementById('roundTripCostSmall').textContent = '$' + roundTripCost.toFixed(2);
+        document.getElementById('brVehicle').textContent = vehicleName;
+        document.getElementById('brMpg').textContent = mpg + ' mpg';
+        document.getElementById('brFuel').textContent = '$' + fuelPrice.toFixed(2) + '/gal';
+        document.getElementById('brDist').textContent = oneWayMiles.toFixed(1) + ' mi';
+        document.getElementById('brGallons').textContent = gallonsRT.toFixed(2) + ' gal';
+
+        document.getElementById('results').classList.add('visible');
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        btn.disabled = false;
+        document.getElementById('loading').classList.remove('visible');
+    }
+}
+
+function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('visible');
+}
+
+// ===== MATRIX RAIN =====
+function initMatrixRain() {
+    const canvas = document.getElementById('matrix-rain');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const fontSize = 14;
+    const columns = Math.floor(canvas.width / fontSize);
+    const drops = Array(columns).fill(1);
+    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
+
+    function draw() {
+        ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#00FF41';
+        ctx.font = fontSize + 'px monospace';
+
+        for (let i = 0; i < drops.length; i++) {
+            const char = chars[Math.floor(Math.random() * chars.length)];
+            ctx.fillText(char, i * fontSize, drops[i] * fontSize);
+            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                drops[i] = 0;
+            }
+            drops[i]++;
+        }
+    }
+
+    setInterval(draw, 50);
+}
+
+// ===== START =====
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
