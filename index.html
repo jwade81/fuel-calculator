@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Trip Cost Calculator</title>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAZIEWnCEpaa5eeAjPuKVF8NdN2y04loxc&libraries=places" async defer></script>
     <style>
         /* ===== RESET & BASE ===== */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -746,7 +747,7 @@ function selectVehicle(num) {
 }
 
 // ===== CALCULATE =====
-async function calculate() {
+function calculate() {
     const home = localStorage.getItem('homeAddress') || '';
     const dest = document.getElementById('destination').value.trim();
 
@@ -762,8 +763,8 @@ async function calculate() {
         showError('Enter a destination address.');
         return;
     }
-    if (GOOGLE_MAPS_API_KEY === 'YOUR_API_KEY_HERE') {
-        showError('Add your Google Maps API key in the source code. See the comment in index.html for instructions.');
+    if (typeof google === 'undefined' || !google.maps) {
+        showError('Google Maps is still loading. Please wait a moment and try again.');
         return;
     }
 
@@ -771,19 +772,28 @@ async function calculate() {
     btn.disabled = true;
     document.getElementById('loading').classList.add('visible');
 
-    try {
-        const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(home)}&destinations=${encodeURIComponent(dest)}&units=imperial&key=${GOOGLE_MAPS_API_KEY}`;
+    const service = new google.maps.DistanceMatrixService();
+    service.getDistanceMatrix({
+        origins: [home],
+        destinations: [dest],
+        travelMode: 'DRIVING',
+        unitSystem: google.maps.UnitSystem.IMPERIAL
+    }, function(response, status) {
+        btn.disabled = false;
+        document.getElementById('loading').classList.remove('visible');
 
-        const res = await fetch(url);
-        const data = await res.json();
+        if (status !== 'OK') {
+            showError('API error: ' + status);
+            return;
+        }
 
-        if (data.status !== 'OK') throw new Error('API error: ' + data.status);
+        const element = response.rows[0].elements[0];
+        if (element.status !== 'OK') {
+            showError('Route not found. Check your addresses.');
+            return;
+        }
 
-        const element = data.rows[0].elements[0];
-        if (element.status !== 'OK') throw new Error('Route not found. Check your addresses.');
-
-        // Distance comes in meters from the API; convert to miles
-        const distText = element.distance.text;
+        // Distance in meters → miles
         const distMeters = element.distance.value;
         const oneWayMiles = distMeters * 0.000621371;
 
@@ -811,12 +821,7 @@ async function calculate() {
         document.getElementById('brGallons').textContent = gallonsRT.toFixed(2) + ' gal';
 
         document.getElementById('results').classList.add('visible');
-    } catch (err) {
-        showError(err.message);
-    } finally {
-        btn.disabled = false;
-        document.getElementById('loading').classList.remove('visible');
-    }
+    });
 }
 
 function showError(msg) {
