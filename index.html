@@ -259,9 +259,11 @@
 
         .vehicle-card img {
             width: 100%;
-            height: 80px;
-            object-fit: contain;
+            height: 100px;
+            object-fit: cover;
             margin-bottom: 8px;
+            border-radius: 6px;
+            background: #2a2a2a;
             filter: brightness(0.9);
         }
 
@@ -551,12 +553,12 @@
     <div class="section-label">Select Vehicle</div>
     <div class="vehicle-cards">
         <div class="vehicle-card selected" id="card1" onclick="selectVehicle(1)">
-            <img id="v1Img" src="https://www.motortrend.com/uploads/sites/10/2015/11/2007-chevrolet-tahoe-ltz-2wd-suv-angular-front.png" alt="Vehicle 1" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 100%22><rect fill=%22%23111%22 width=%22200%22 height=%22100%22/><text x=%2250%25%22 y=%2250%25%22 fill=%22%2300FF41%22 font-family=%22monospace%22 font-size=%2212%22 text-anchor=%22middle%22 dy=%22.3em%22>VEHICLE 1</text></svg>'">
+            <img id="v1Img" src="Tahoe.jpg" alt="2007 Chevy Tahoe">
             <div class="v-name" id="v1Label">2007 Chevy Tahoe</div>
             <div class="v-mpg"><span id="v1MpgDisplay">15</span> MPG</div>
         </div>
         <div class="vehicle-card" id="card2" onclick="selectVehicle(2)">
-            <img id="v2Img" src="https://www.motortrend.com/uploads/sites/10/2017/01/2017-ford-explorer-sport-4wd-suv-angular-front.png" alt="Vehicle 2" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 100%22><rect fill=%22%23111%22 width=%22200%22 height=%22100%22/><text x=%2250%25%22 y=%2250%25%22 fill=%22%2300FF41%22 font-family=%22monospace%22 font-size=%2212%22 text-anchor=%22middle%22 dy=%22.3em%22>VEHICLE 2</text></svg>'">
+            <img id="v2Img" src="Explorer.jpg" alt="2017 Ford Explorer">
             <div class="v-name" id="v2Label">2017 Ford Explorer</div>
             <div class="v-mpg"><span id="v2MpgDisplay">20</span> MPG</div>
         </div>
@@ -675,22 +677,11 @@ const defaults = {
     homeAddress: ''
 };
 
-// ===== VEHICLE IMAGES =====
-// Using realistic placeholder images; onerror fallbacks are in the HTML
-const vehicleImages = {
-    1: 'https://images.hgmsites.net/lrg/2007-chevrolet-tahoe-2wd-4-door-1500-ltz-angular-front-exterior-view_100276498_l.jpg',
-    2: 'https://images.hgmsites.net/lrg/2017-ford-explorer-sport-4wd-angular-front-exterior-view_100580683_l.jpg'
-};
-
 // ===== INIT =====
 function init() {
     loadSettings();
     updateVehicleCards();
     initMatrixRain();
-
-    // Load vehicle images
-    document.getElementById('v1Img').src = vehicleImages[1];
-    document.getElementById('v2Img').src = vehicleImages[2];
 
     // Enter key triggers calc
     document.getElementById('destination').addEventListener('keydown', function(e) {
